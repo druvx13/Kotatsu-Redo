@@ -1,0 +1,67 @@
+name: Android Release APK (signed + publish)
+
+on:
+  # Manual run if you want
+  workflow_dispatch:
+  # Automatic when you push a tag like v1.0.0, v2.3.4, etc.
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # required to create releases
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      # Generate throwaway keystore on the runner
+      - name: Generate release keystore
+        run: |
+          keytool -genkeypair \
+            -alias kotatsuKey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass password \
+            -keypass password \
+            -dname "CN=Kotatsu,O=Self,C=US" \
+            -keystore kotatsu-release.keystore
+
+      - name: Build signed release APK
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/kotatsu-release.keystore \
+            -Pandroid.injected.signing.store.password=password \
+            -Pandroid.injected.signing.key.alias=kotatsuKey \
+            -Pandroid.injected.signing.key.password=password
+
+      - name: Archive APK as artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotatsu-redo-signed-release-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Publish GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
