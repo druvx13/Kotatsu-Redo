@@ -72,6 +72,10 @@ import org.koitharu.kotatsu.tracker.data.TracksDao
 
 const val DATABASE_VERSION = 27
 
+/**
+ * The Room database for the application.
+ * Defines the entities and version of the database.
+ */
 @Database(
 	entities = [
 		MangaEntity::class, TagEntity::class, HistoryEntity::class, MangaTagsEntity::class, ChapterEntity::class,
@@ -83,37 +87,85 @@ const val DATABASE_VERSION = 27
 )
 abstract class MangaDatabase : RoomDatabase() {
 
+	/**
+	 * Returns the HistoryDao for accessing history data.
+	 */
 	abstract fun getHistoryDao(): HistoryDao
 
+	/**
+	 * Returns the TagsDao for accessing tags data.
+	 */
 	abstract fun getTagsDao(): TagsDao
 
+	/**
+	 * Returns the MangaDao for accessing manga data.
+	 */
 	abstract fun getMangaDao(): MangaDao
 
+	/**
+	 * Returns the FavouritesDao for accessing favourites data.
+	 */
 	abstract fun getFavouritesDao(): FavouritesDao
 
+	/**
+	 * Returns the PreferencesDao for accessing preferences data.
+	 */
 	abstract fun getPreferencesDao(): PreferencesDao
 
+	/**
+	 * Returns the FavouriteCategoriesDao for accessing favourite categories data.
+	 */
 	abstract fun getFavouriteCategoriesDao(): FavouriteCategoriesDao
 
+	/**
+	 * Returns the TracksDao for accessing tracker data.
+	 */
 	abstract fun getTracksDao(): TracksDao
 
+	/**
+	 * Returns the TrackLogsDao for accessing track logs data.
+	 */
 	abstract fun getTrackLogsDao(): TrackLogsDao
 
+	/**
+	 * Returns the SuggestionDao for accessing suggestion data.
+	 */
 	abstract fun getSuggestionDao(): SuggestionDao
 
+	/**
+	 * Returns the BookmarksDao for accessing bookmark data.
+	 */
 	abstract fun getBookmarksDao(): BookmarksDao
 
+	/**
+	 * Returns the ScrobblingDao for accessing scrobbling data.
+	 */
 	abstract fun getScrobblingDao(): ScrobblingDao
 
+	/**
+	 * Returns the MangaSourcesDao for accessing manga sources data.
+	 */
 	abstract fun getSourcesDao(): MangaSourcesDao
 
+	/**
+	 * Returns the StatsDao for accessing statistics data.
+	 */
 	abstract fun getStatsDao(): StatsDao
 
+	/**
+	 * Returns the LocalMangaIndexDao for accessing local manga index data.
+	 */
 	abstract fun getLocalMangaIndexDao(): LocalMangaIndexDao
 
+	/**
+	 * Returns the ChaptersDao for accessing chapter data.
+	 */
 	abstract fun getChaptersDao(): ChaptersDao
 }
 
+/**
+ * Returns an array of all database migrations.
+ */
 fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
 	Migration1To2(),
 	Migration2To3(),
@@ -144,12 +196,24 @@ fun getDatabaseMigrations(context: Context): Array<Migration> = arrayOf(
 	Migration26To27(),
 )
 
+/**
+ * Creates and builds the MangaDatabase instance.
+ *
+ * @param context The application context.
+ * @return The built MangaDatabase instance.
+ */
 fun MangaDatabase(context: Context): MangaDatabase = Room
 	.databaseBuilder(context, MangaDatabase::class.java, "kotatsu-db")
 	.addMigrations(*getDatabaseMigrations(context))
 	.addCallback(DatabasePrePopulateCallback(context.resources))
 	.build()
 
+/**
+ * Removes a database observer asynchronously.
+ * Uses the process lifecycle scope to launch the removal coroutine.
+ *
+ * @param observer The observer to remove.
+ */
 fun InvalidationTracker.removeObserverAsync(observer: InvalidationTracker.Observer) {
 	val scope = processLifecycleScope
 	if (scope.isActive) {
