@@ -18,6 +18,8 @@ jobs:
       KEY_PASSWORD: "password123"
       STORE_PASSWORD: "password123"
       KEY_ALIAS: "kotatsuKey"
+      # The RAW URL of your keystore file on the devel branch
+      KEYSTORE_URL: "https://raw.githubusercontent.com/druvx13/Kotatsu-Redo/devel/keystore.b64"
 
     steps:
       - name: Checkout
@@ -38,60 +40,24 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      # 🟢 SELF-HEALING KEY LOGIC 🟢
-      - name: Ensure Keystore Exists
+      # 🟢 DIRECT DOWNLOAD LOGIC 🟢
+      - name: Download Keystore
         run: |
-          KEY_FILE="keystore.b64"
-
-          # 1. First, check if the key is already in the current workspace (from tag)
-          if [ -f "$KEY_FILE" ]; then
-             echo "✅ Found key in current workspace."
+          echo "⬇️ Downloading keystore from devel branch..."
+          
+          # Use curl to download the raw file. 
+          # -f: Fail silently (no output) on server errors (404/etc) so we can catch it
+          # -L: Follow redirects
+          # -o: Output to file
+          if curl -fL -o keystore.b64 "${{ env.KEYSTORE_URL }}"; then
+             echo "✅ Download successful."
           else
-             echo "🔍 Key not in current tag. Checking 'devel' branch..."
-             git fetch origin devel
-             
-             # 2. Try to checkout the key file directly from the remote devel branch
-             # This avoids switching branches (which caused your crash) and just grabs the file.
-             if git checkout origin/devel -- "$KEY_FILE" 2>/dev/null; then
-                echo "✅ Key found in 'devel' and checked out for this build."
-             else
-                # 3. Only generate a new key if it is TRULY missing from both Tag and Devel
-                echo "⚠️ Key NOT found in 'devel'. Generating new..."
-                
-                # Switch to devel FIRST to avoid checkout conflicts later
-                git checkout devel
-
-                keytool -genkeypair -v \
-                  -keystore release.keystore \
-                  -alias "${{ env.KEY_ALIAS }}" \
-                  -keyalg RSA \
-                  -keysize 2048 \
-                  -validity 10000 \
-                  -storepass "${{ env.STORE_PASSWORD }}" \
-                  -keypass "${{ env.KEY_PASSWORD }}" \
-                  -dname "CN=KotatsuUser, O=Personal, C=US"
-
-                base64 release.keystore > "$KEY_FILE"
-
-                echo "💾 Committing new key to 'devel' branch..."
-                git config --global user.name "GitHub Actions"
-                git config --global user.email "actions@github.com"
-                
-                git add "$KEY_FILE"
-                git commit -m "chore: Auto-generate permanent signing key [skip ci]"
-                git push origin devel
-                
-                echo "✅ Key saved to repo. Switching back to tag for build..."
-                git checkout -
-                
-                # Restore the file we just created (switching branches might have hidden it)
-                git checkout devel -- "$KEY_FILE"
-             fi
+             echo "❌ Download failed! Please check if the URL is accessible and the file exists."
+             exit 1
           fi
 
-          # 4. Final Decode
           echo "🔓 Decoding keystore..."
-          base64 --decode "$KEY_FILE" > release.keystore
+          base64 --decode keystore.b64 > release.keystore
 
       - name: Build signed release APK
         run: |
