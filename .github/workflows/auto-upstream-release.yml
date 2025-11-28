@@ -27,17 +27,25 @@ jobs:
       - name: Get latest upstream tag
         id: tag
         run: |
+          # 1. List tags
+          # 2. Remove refs/tags/ prefix
+          # 3. Remove dereferenced tag markers ^{}
+          # 4. Filter: Keep ONLY tags that look like numbers (e.g. 9.5.0, 10.1.2)
+          #    This ignores 'Nightly', 'beta', etc.
+          # 5. Sort by version
+          # 6. Take the last one
           latest_tag=$(git ls-remote --tags upstream \
             | sed 's|^.*refs/tags/||' \
             | sed 's|\^{}||' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
             | sort -V \
             | tail -n1)
 
           if [ -z "$latest_tag" ]; then
-            echo "No tags found on upstream or remote fetch failed."
+            echo "No stable tags found on upstream."
             echo "latest_tag=" >> $GITHUB_OUTPUT
           else
-            echo "Latest upstream tag: $latest_tag"
+            echo "Latest stable upstream tag: $latest_tag"
             echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
           fi
 
