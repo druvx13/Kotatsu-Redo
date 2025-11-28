@@ -26,28 +26,88 @@ import java.lang.ref.WeakReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Interface defining the contract for accessing manga data.
+ * Implementations handle different data sources (local, parser, external).
+ */
 interface MangaRepository {
 
+	/**
+	 * The source associated with this repository.
+	 */
 	val source: MangaSource
 
+	/**
+	 * Supported sort orders for this source.
+	 */
 	val sortOrders: Set<SortOrder>
 
+	/**
+	 * The default sort order.
+	 */
 	var defaultSortOrder: SortOrder
 
+	/**
+	 * Capabilities of the filter for this source.
+	 */
 	val filterCapabilities: MangaListFilterCapabilities
 
+	/**
+	 * Fetches a list of manga based on the provided parameters.
+	 *
+	 * @param offset The offset for pagination.
+	 * @param order The sort order.
+	 * @param filter Optional filter criteria.
+	 * @return A list of manga.
+	 */
 	suspend fun getList(offset: Int, order: SortOrder?, filter: MangaListFilter?): List<Manga>
 
+	/**
+	 * Fetches details for a specific manga.
+	 *
+	 * @param manga The manga to fetch details for.
+	 * @return The updated manga object with details.
+	 */
 	suspend fun getDetails(manga: Manga): Manga
 
+	/**
+	 * Fetches the pages for a specific chapter.
+	 *
+	 * @param chapter The chapter to fetch pages for.
+	 * @return A list of pages.
+	 */
 	suspend fun getPages(chapter: MangaChapter): List<MangaPage>
 
+	/**
+	 * Resolves the URL for a specific page.
+	 *
+	 * @param page The page to resolve the URL for.
+	 * @return The URL of the page image.
+	 */
 	suspend fun getPageUrl(page: MangaPage): String
 
+	/**
+	 * Fetches available filter options for the source.
+	 *
+	 * @return The filter options.
+	 */
 	suspend fun getFilterOptions(): MangaListFilterOptions
 
+	/**
+	 * Fetches related manga for the given seed manga.
+	 *
+	 * @param seed The manga to find related items for.
+	 * @return A list of related manga.
+	 */
 	suspend fun getRelated(seed: Manga): List<Manga>
 
+	/**
+	 * Attempts to find a specific manga in the repository.
+	 * Default implementation searches by title.
+	 *
+	 * @param manga The manga to find.
+	 * @return The found manga, or null if not found.
+	 */
 	suspend fun find(manga: Manga): Manga? {
 		val list = getList(0, SortOrder.RELEVANCE, MangaListFilter(query = manga.title))
 		return list.find { x -> x.id == manga.id }

@@ -61,20 +61,40 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToLong
 
+/**
+ * Returns the ActivityManager system service.
+ */
 val Context.activityManager: ActivityManager?
 	get() = getSystemService(ACTIVITY_SERVICE) as? ActivityManager
 
+/**
+ * Returns the PowerManager system service.
+ */
 val Context.powerManager: PowerManager?
 	get() = getSystemService(POWER_SERVICE) as? PowerManager
 
+/**
+ * Returns the ConnectivityManager system service.
+ */
 val Context.connectivityManager: ConnectivityManager
 	get() = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
+/**
+ * Tries to set the foreground info for the worker.
+ * Returns true if successful, false otherwise.
+ */
 suspend fun CoroutineWorker.trySetForeground(): Boolean = runCatchingCancellable {
 	val info = getForegroundInfo()
 	setForeground(info)
 }.isSuccess
 
+/**
+ * Resolves the activity for the given input.
+ *
+ * @param context The context to use.
+ * @param input The input to the contract.
+ * @return The ResolveInfo of the activity that handles the intent, or null if none found.
+ */
 @CheckResult
 fun <I> ActivityResultLauncher<I>.resolve(context: Context, input: I): ResolveInfo? {
 	val pm = context.packageManager
@@ -82,6 +102,14 @@ fun <I> ActivityResultLauncher<I>.resolve(context: Context, input: I): ResolveIn
 	return pm.resolveActivity(intent, 0)
 }
 
+/**
+ * Tries to launch the activity launcher.
+ * Catches any exceptions and prints the stack trace in debug mode.
+ *
+ * @param input The input to pass to the launcher.
+ * @param options Optional ActivityOptionsCompat.
+ * @return True if launch was successful, false otherwise.
+ */
 @CheckResult
 fun <I> ActivityResultLauncher<I>.tryLaunch(
 	input: I,
@@ -92,6 +120,12 @@ fun <I> ActivityResultLauncher<I>.tryLaunch(
 	e.printStackTraceDebug()
 }.isSuccess
 
+/**
+ * Posts a runnable to be executed after a delay on the lifecycle's coroutine scope.
+ *
+ * @param delay The delay in milliseconds.
+ * @param runnable The runnable to execute.
+ */
 fun Lifecycle.postDelayed(delay: Long, runnable: Runnable) {
 	coroutineScope.launch {
 		delay(delay)
@@ -99,6 +133,12 @@ fun Lifecycle.postDelayed(delay: Long, runnable: Runnable) {
 	}
 }
 
+/**
+ * Handles errors occurring during sync adapter operations.
+ * Updates the SyncResult stats based on the exception type.
+ *
+ * @param error The exception that occurred.
+ */
 fun SyncResult.onError(error: Throwable) {
 	when (error) {
 		is IOException -> stats.numIoExceptions++
@@ -111,28 +151,52 @@ fun SyncResult.onError(error: Throwable) {
 	error.printStackTraceDebug()
 }
 
+/**
+ * Returns the system animator duration scale.
+ */
 val Context.animatorDurationScale: Float
 	get() = Settings.Global.getFloat(this.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
 
+/**
+ * Checks if animations are enabled on the device.
+ */
 val Context.isAnimationsEnabled: Boolean
 	get() = animatorDurationScale > 0f
 
+/**
+ * Applies the system animator scale to the ViewPropertyAnimator duration.
+ */
 fun ViewPropertyAnimator.applySystemAnimatorScale(context: Context): ViewPropertyAnimator = apply {
 	this.duration = (this.duration * context.animatorDurationScale).toLong()
 }
 
+/**
+ * Returns the animation duration from resources, scaled by the system animator scale.
+ *
+ * @param resId The resource ID of the integer containing the duration.
+ * @return The scaled duration in milliseconds.
+ */
 fun Context.getAnimationDuration(@IntegerRes resId: Int): Long {
 	return (resources.getInteger(resId) * animatorDurationScale).roundToLong()
 }
 
+/**
+ * Checks if the device is a low RAM device.
+ */
 fun Context.isLowRamDevice(): Boolean {
 	return activityManager?.isLowRamDevice == true
 }
 
+/**
+ * Checks if the device is in power save mode.
+ */
 fun Context.isPowerSaveMode(): Boolean {
 	return powerManager?.isPowerSaveMode == true
 }
 
+/**
+ * Returns the available RAM in bytes.
+ */
 val Context.ramAvailable: Long
 	get() {
 		val result = MemoryInfo()
@@ -140,6 +204,11 @@ val Context.ramAvailable: Long
 		return result.availMem
 	}
 
+/**
+ * Returns the supported locales configuration.
+ * On Android 13+ (Tiramisu), it uses LocaleConfig.
+ * On older versions, it parses the locales_config.xml resource.
+ */
 fun Context.getLocalesConfig(): LocaleListCompat {
 	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 		LocaleConfig(this).supportedLocales?.let {
@@ -165,12 +234,18 @@ fun Context.getLocalesConfig(): LocaleListCompat {
 	return LocaleListCompat.forLanguageTags(tagsList.complete())
 }
 
+/**
+ * Recursively finds the Activity associated with this Context.
+ */
 fun Context.findActivity(): Activity? = when (this) {
 	is Activity -> this
 	is ContextWrapper -> baseContext.findActivity()
 	else -> null
 }
 
+/**
+ * Finds the AppCompatDelegate associated with this Fragment, checking parents and the host Activity.
+ */
 fun Fragment.findAppCompatDelegate(): AppCompatDelegate? {
 	((this as? DialogFragment)?.dialog as? AppCompatDialog)?.run {
 		return delegate
@@ -178,6 +253,12 @@ fun Fragment.findAppCompatDelegate(): AppCompatDelegate? {
 	return parentFragment?.findAppCompatDelegate() ?: (activity as? AppCompatActivity)?.delegate
 }
 
+/**
+ * Checks if notification permission is granted.
+ * Handles Android 13+ permission and channel importance.
+ *
+ * @param channelId Optional channel ID to check importance for.
+ */
 fun Context.checkNotificationPermission(channelId: String?): Boolean {
 	val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 		ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PERMISSION_GRANTED
@@ -193,6 +274,13 @@ fun Context.checkNotificationPermission(channelId: String?): Boolean {
 	return hasPermission
 }
 
+/**
+ * Compresses the bitmap to PNG format and saves it to the specified file.
+ * Runs on IO dispatcher.
+ *
+ * @param output The file to save the PNG to.
+ * @throws IOException If compression fails.
+ */
 suspend fun Bitmap.compressToPNG(output: File) = runInterruptible(Dispatchers.IO) {
 	output.outputStream().use { os ->
 		if (!compress(Bitmap.CompressFormat.PNG, 100, os)) {
@@ -201,12 +289,24 @@ suspend fun Bitmap.compressToPNG(output: File) = runInterruptible(Dispatchers.IO
 	}
 }
 
+/**
+ * Ensures that the available RAM is at least the required size.
+ *
+ * @param requiredSize The required RAM size in bytes.
+ * @throws IllegalStateException If not enough free memory.
+ */
 fun Context.ensureRamAtLeast(requiredSize: Long) {
 	if (ramAvailable < requiredSize) {
 		throw IllegalStateException("Not enough free memory")
 	}
 }
 
+/**
+ * Configures the WebView for use with parsers.
+ * Enables JavaScript, DOM storage, and sets other settings.
+ *
+ * @param userAgentOverride Optional user agent string to override the default.
+ */
 fun WebView.configureForParser(userAgentOverride: String?) = with(settings) {
 	javaScriptEnabled = true
 	domStorageEnabled = true
@@ -224,6 +324,9 @@ fun WebView.configureForParser(userAgentOverride: String?) = with(settings) {
 	cookieManager.setAcceptThirdPartyCookies(this@configureForParser, true)
 }
 
+/**
+ * Restarts the application.
+ */
 fun Context.restartApplication() {
 	val activity = findActivity()
 	val intent = Intent.makeRestartActivityTask(ComponentName(this, MainActivity::class.java))
@@ -231,6 +334,10 @@ fun Context.restartApplication() {
 	activity?.finishAndRemoveTask()
 }
 
+/**
+ * Executes a block with a partial wake lock held.
+ * The wake lock is acquired for a maximum of 1 hour.
+ */
 internal inline fun <R> PowerManager?.withPartialWakeLock(tag: String, body: (PowerManager.WakeLock?) -> R): R {
 	val wakeLock = newPartialWakeLock(tag)
 	return try {
@@ -249,6 +356,12 @@ private fun PowerManager?.newPartialWakeLock(tag: String): PowerManager.WakeLock
 	}
 }
 
+/**
+ * Copies text to the clipboard.
+ *
+ * @param label User-visible label for the clip data.
+ * @param content The text to copy.
+ */
 fun Context.copyToClipboard(label: String, content: String) {
 	val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
 	clipboardManager.setPrimaryClip(ClipData.newPlainText(label, content))

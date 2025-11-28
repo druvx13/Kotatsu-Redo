@@ -37,6 +37,10 @@ import java.security.Security
 import javax.inject.Inject
 import javax.inject.Provider
 
+/**
+ * Base Application class for Kotatsu.
+ * Handles initialization of global components, dependency injection, and error reporting.
+ */
 @HiltAndroidApp
 open class BaseApp : Application(), Configuration.Provider {
 
@@ -68,6 +72,9 @@ open class BaseApp : Application(), Configuration.Provider {
 	@LocalStorageChanges
 	lateinit var localStorageChanges: MutableSharedFlow<LocalManga?>
 
+	/**
+	 * Configuration for WorkManager, using Hilt's WorkerFactory.
+	 */
 	override val workManagerConfiguration: Configuration
 		get() = Configuration.Builder()
 			.setWorkerFactory(workerFactory)
@@ -96,6 +103,9 @@ open class BaseApp : Application(), Configuration.Provider {
 		workScheduleManager.init()
 	}
 
+	/**
+	 * Attaches base context and initializes ACRA for crash reporting.
+	 */
 	override fun attachBaseContext(base: Context) {
 		super.attachBaseContext(base)
 		if (ACRA.isACRASenderServiceProcess()) {

@@ -25,14 +25,26 @@ import org.koitharu.kotatsu.parsers.util.ifNullOrEmpty
 import org.koitharu.kotatsu.parsers.util.mapToSet
 import com.google.android.material.R as materialR
 
+/**
+ * Returns a set of IDs from the collection of Manga.
+ */
 @JvmName("mangaIds")
 fun Collection<Manga>.ids() = mapToSet { it.id }
 
+/**
+ * Returns a list containing only elements from the given collection having distinct IDs.
+ */
 fun Collection<Manga>.distinctById() = distinctBy { it.id }
 
+/**
+ * Returns a set of IDs from the collection of MangaChapter.
+ */
 @JvmName("chaptersIds")
 fun Collection<MangaChapter>.ids() = mapToSet { it.id }
 
+/**
+ * Counts the maximum number of chapters in any single branch.
+ */
 fun Collection<ChapterListItem>.countChaptersByBranch(): Int {
 	if (size <= 1) {
 		return size
@@ -88,6 +100,16 @@ val Demographic.titleResId: Int
 		Demographic.NONE -> R.string.none
 	}
 
+/**
+ * Determines the preferred chapter branch for the manga.
+ * Priorities:
+ * 1. Branch of the last read chapter.
+ * 2. Branch matching the system locale.
+ * 3. Branch with the most chapters.
+ *
+ * @param history The user's reading history for this manga.
+ * @return The name of the preferred branch, or null.
+ */
 fun Manga.getPreferredBranch(history: MangaHistory?): String? {
 	val ch = chapters
 	if (ch.isNullOrEmpty()) {
@@ -123,12 +145,21 @@ fun Manga.getPreferredBranch(history: MangaHistory?): String? {
 	return groups.maxByOrNull { it.value.size }?.key
 }
 
+/**
+ * Checks if the manga source is local.
+ */
 val Manga.isLocal: Boolean
 	get() = source == LocalMangaSource
 
+/**
+ * Checks if the manga source is unknown/broken.
+ */
 val Manga.isBroken: Boolean
 	get() = source == UnknownMangaSource
 
+/**
+ * Generates a deep link URL for the manga within the app.
+ */
 val Manga.appUrl: Uri
 	get() = "https://kotatsu.app/manga".toUri()
 		.buildUpon()
@@ -137,6 +168,9 @@ val Manga.appUrl: Uri
 		.appendQueryParameter("url", url)
 		.build()
 
+/**
+ * Calculates the maximum number of chapters in any branch.
+ */
 fun Manga.chaptersCount(): Int {
 	if (chapters.isNullOrEmpty()) {
 		return 0
@@ -153,8 +187,16 @@ fun Manga.chaptersCount(): Int {
 	return max
 }
 
+/**
+ * Checks if the manga is considered NSFW (Not Safe For Work).
+ * True if content rating is ADULT or the source itself is NSFW.
+ */
 fun Manga.isNsfw(): Boolean = contentRating == ContentRating.ADULT || source.isNsfw()
 
+/**
+ * Generates a summary string for the manga list filter.
+ * Includes query text and included/excluded tags.
+ */
 fun MangaListFilter.getSummary() = buildSpannedString {
 	if (!query.isNullOrEmpty()) {
 		append(query)
@@ -192,6 +234,13 @@ private fun SpannableStringBuilder.appendTagsSummary(filter: MangaListFilter) {
 	}
 }
 
+/**
+ * Returns a localized title for the manga chapter.
+ * Uses the title if available, otherwise formats number/volume.
+ *
+ * @param resources Android resources for string formatting.
+ * @param index Fallback index if other data is missing.
+ */
 fun MangaChapter.getLocalizedTitle(resources: Resources, index: Int = -1): String {
 	title?.let {
 		if (it.isNotBlank()) {
@@ -213,6 +262,10 @@ fun MangaChapter.getLocalizedTitle(resources: Resources, index: Int = -1): Strin
 	}
 }
 
+/**
+ * Applies overrides to the manga object.
+ * Returns a new Manga instance with overridden properties if override is not null.
+ */
 fun Manga.withOverride(override: MangaOverride?) = if (override != null) {
 	copy(
 		title = override.title.ifNullOrEmpty { title },
