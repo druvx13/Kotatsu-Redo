@@ -54,9 +54,13 @@ jobs:
         id: tag-check
         run: |
           TAG_EXISTS=false
-          if git rev-parse "refs/tags/${{ steps.tag.outputs.latest_tag }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.tag.outputs.latest_tag }} already exists in fork. Nothing to do."
+          # ⚠️ FIX: Check remote 'origin' directly. 
+          # Checking local refs fails because 'fetch upstream' adds the tag locally.
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.tag.outputs.latest_tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.tag.outputs.latest_tag }} already exists in fork (origin). Nothing to do."
             TAG_EXISTS=true
+          else
+            echo "Tag ${{ steps.tag.outputs.latest_tag }} NOT found in fork. Proceeding..."
           fi
           echo "tag_exists=$TAG_EXISTS" >> $GITHUB_OUTPUT
 
