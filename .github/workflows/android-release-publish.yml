@@ -43,55 +43,55 @@ jobs:
         run: |
           KEY_FILE="keystore.b64"
 
-          # 1. If key is missing in the current tag, check if it exists in 'devel' (from a previous run)
-          if [ ! -f "$KEY_FILE" ]; then
-             echo "🔍 Key not found in current tag. Checking 'devel' branch..."
+          # 1. First, check if the key is already in the current workspace (from tag)
+          if [ -f "$KEY_FILE" ]; then
+             echo "✅ Found key in current workspace."
+          else
+             echo "🔍 Key not in current tag. Checking 'devel' branch..."
              git fetch origin devel
              
-             # Try to checkout just the key file from the devel branch
+             # 2. Try to checkout the key file directly from the remote devel branch
+             # This avoids switching branches (which caused your crash) and just grabs the file.
              if git checkout origin/devel -- "$KEY_FILE" 2>/dev/null; then
                 echo "✅ Key found in 'devel' and checked out for this build."
              else
-                echo "⚠️ Key not found in 'devel' either."
+                # 3. Only generate a new key if it is TRULY missing from both Tag and Devel
+                echo "⚠️ Key NOT found in 'devel'. Generating new..."
+                
+                # Switch to devel FIRST to avoid checkout conflicts later
+                git checkout devel
+
+                keytool -genkeypair -v \
+                  -keystore release.keystore \
+                  -alias "${{ env.KEY_ALIAS }}" \
+                  -keyalg RSA \
+                  -keysize 2048 \
+                  -validity 10000 \
+                  -storepass "${{ env.STORE_PASSWORD }}" \
+                  -keypass "${{ env.KEY_PASSWORD }}" \
+                  -dname "CN=KotatsuUser, O=Personal, C=US"
+
+                base64 release.keystore > "$KEY_FILE"
+
+                echo "💾 Committing new key to 'devel' branch..."
+                git config --global user.name "GitHub Actions"
+                git config --global user.email "actions@github.com"
+                
+                git add "$KEY_FILE"
+                git commit -m "chore: Auto-generate permanent signing key [skip ci]"
+                git push origin devel
+                
+                echo "✅ Key saved to repo. Switching back to tag for build..."
+                git checkout -
+                
+                # Restore the file we just created (switching branches might have hidden it)
+                git checkout devel -- "$KEY_FILE"
              fi
           fi
 
-          # 2. If we found the file (either locally or from devel), decode it.
-          if [ -f "$KEY_FILE" ]; then
-            echo "✅ Keystore file found. Decoding..."
-            base64 --decode "$KEY_FILE" > release.keystore
-          else
-            # 3. Only Generate if it truly doesn't exist anywhere
-            echo "⚠️ Keystore file NOT found. Generating a new permanent key..."
-            
-            keytool -genkeypair -v \
-              -keystore release.keystore \
-              -alias "${{ env.KEY_ALIAS }}" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass "${{ env.STORE_PASSWORD }}" \
-              -keypass "${{ env.KEY_PASSWORD }}" \
-              -dname "CN=KotatsuUser, O=Personal, C=US"
-
-            base64 release.keystore > "$KEY_FILE"
-
-            echo "💾 Committing new key to 'devel' branch..."
-            git config --global user.name "GitHub Actions"
-            git config --global user.email "actions@github.com"
-            
-            git fetch origin devel
-            git checkout devel
-            git add "$KEY_FILE"
-            git commit -m "chore: Auto-generate permanent signing key [skip ci]" || echo "Nothing to commit"
-            git push origin devel
-            
-            echo "✅ Key saved to repo. Switching back to tag for build..."
-            git checkout -
-            
-            # CRITICAL FIX: Do NOT decode here. release.keystore already exists from the generation step.
-            echo "✅ Using the newly generated release.keystore for this run."
-          fi
+          # 4. Final Decode
+          echo "🔓 Decoding keystore..."
+          base64 --decode "$KEY_FILE" > release.keystore
 
       - name: Build signed release APK
         run: |
