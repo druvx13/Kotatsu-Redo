@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # 🔑 CRITICAL CHANGE: Use the PAT so the push triggers other workflows
+          # 🔑 CRITICAL: PAT required to trigger the next workflow
           token: ${{ secrets.PAT_TOKEN }}
 
       - name: Add upstream
@@ -75,7 +75,7 @@ jobs:
             exit 0
           fi
 
-          # Configure Git user for the commit (required when using PAT)
+          # Configure Git user for the commit
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
@@ -90,7 +90,6 @@ jobs:
       - name: Create same tag in fork
         if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
         run: |
-          # Configure Git user for the tag (required when using PAT)
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
           
