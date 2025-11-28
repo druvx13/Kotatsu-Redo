@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="url_github" translatable="false">https://github.com/Kotatsu-Redo/Kotatsu-Redo</string>
+	<string name="url_github" translatable="false">https://github.com/druvx13/Kotatsu-Redo</string>
 	<string name="url_discord" translatable="false">https://discord.gg/sfPJSQNxfW</string>
 	<string name="url_weblate" translatable="false">https://hosted.weblate.org/engage/kotatsu</string>
 	<string name="url_user_manual" translatable="false">https://kotatsu.app/manuals/guides/getting-started/</string>
