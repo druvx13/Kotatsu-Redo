@@ -1,12 +1,11 @@
 name: Android Release APK (signed + publish)
 
 on:
-  # Manual run if you want
   workflow_dispatch:
-  # Automatic when you push a tag like v1.0.0, v2.3.4, etc.
   push:
     tags:
-      - 'v*'
+      - '*'        # run for any tag, e.g. 9.5.1
+
 
 permissions:
   contents: write   # required to create releases
