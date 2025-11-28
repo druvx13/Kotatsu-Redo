@@ -54,8 +54,7 @@ jobs:
         id: tag-check
         run: |
           TAG_EXISTS=false
-          # ⚠️ FIX: Check remote 'origin' directly. 
-          # Checking local refs fails because 'fetch upstream' adds the tag locally.
+          # Check remote 'origin' directly.
           if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.tag.outputs.latest_tag }}" >/dev/null 2>&1; then
             echo "Tag ${{ steps.tag.outputs.latest_tag }} already exists in fork (origin). Nothing to do."
             TAG_EXISTS=true
@@ -68,23 +67,23 @@ jobs:
         if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
         id: merge
         run: |
-          # Checkout your devel branch (adjust if you use another branch)
+          # Checkout your devel branch
           git checkout devel
 
-          # Merge upstream/devel - use || true to prevent job failure on conflict
+          # Merge upstream/devel
+          # We use '|| true' so the script continues if there's a conflict or if it's already up-to-date
           git merge upstream/devel --no-commit --no-ff || true
 
-          # Always keep your own constants.xml (Common Android resource file)
+          # Always keep your own constants.xml
           CONSTANTS_FILE="app/src/main/res/values/constants.xml"
           if [ -f "$CONSTANTS_FILE" ]; then
-            # Checkout the version from the local branch (ours)
             git checkout --ours "$CONSTANTS_FILE" || true
           fi
 
-          # If nothing changed after merge (or only conflicts were resolved by --ours), abort merge and exit
+          # If nothing changed (already up to date OR only conflicts resolved by --ours), abort
           if git diff --quiet; then
             echo "No meaningful changes after merge; aborting."
-            git merge --abort || true
+            git merge --abort 2>/dev/null || true
             exit 0
           fi
 
@@ -99,7 +98,9 @@ jobs:
       - name: Create same tag in fork
         if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
         run: |
-          git tag "${{ steps.tag.outputs.latest_tag }}"
+          # ⚠️ FIX: Use -f (force) because 'git fetch upstream' ALREADY downloaded the tag locally.
+          # We need to overwrite the local upstream tag with a new tag pointing to OUR commit.
+          git tag -f "${{ steps.tag.outputs.latest_tag }}"
           git push origin "${{ steps.tag.outputs.latest_tag }}"
 
       - name: Done
