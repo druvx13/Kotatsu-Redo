@@ -1,93 +1,102 @@
 name: Auto Upstream Release Sync + Auto Build
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"   # check every 30 minutes
-  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"   # check every 30 minutes
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # Needed for git push and git tag operations
 
 jobs:
-  sync-and-tag:
-    runs-on: ubuntu-latest
+  sync-and-tag:
+    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout fork
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full history for tag checking
 
-      - name: Add upstream
-        run: git remote add upstream https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
+      - name: Add upstream
+        run: git remote add upstream https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
 
-      - name: Fetch upstream (branches + tags)
-        run: git fetch upstream --tags
+      - name: Fetch upstream (branches + tags)
+        run: git fetch upstream --tags
 
-      - name: Get latest upstream tag
-        id: tag
-        run: |
-          latest_tag=$(git ls-remote --tags upstream \
-            | sed 's|^.*refs/tags/||' \
-            | sed 's|\^{}||' \
-            | sort -V \
-            | tail -n1)
+      - name: Get latest upstream tag
+        id: tag
+        run: |
+          # Get and sort tags from upstream repo, select the latest one
+          latest_tag=$(git ls-remote --tags upstream \
+            | sed 's|^.*refs/tags/||' \
+            | sed 's|\^{}||' \
+            | sort -V \
+            | tail -n1)
 
-          if [ -z "$latest_tag" ]; then
-            echo "No tags found on upstream."
-            echo "latest_tag=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          if [ -z "$latest_tag" ]; then
+            echo "No tags found on upstream or remote fetch failed."
+            echo "latest_tag=" >> $GITHUB_OUTPUT # Explicitly set empty
+          else
+            echo "Latest upstream tag: $latest_tag"
+            echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+          fi
 
-          echo "Latest upstream tag: $latest_tag"
-          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+      # Removed: Redundant 'Stop if no tag found' step
 
-      - name: Stop if no tag found
-        if: steps.tag.outputs.latest_tag == ''
-        run: echo "Nothing to do."
+      - name: Check if tag already exists in fork
+        if: steps.tag.outputs.latest_tag != ''
+        id: tag-check
+        run: |
+          TAG_EXISTS=false
+          if git rev-parse "refs/tags/${{ steps.tag.outputs.latest_tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.tag.outputs.latest_tag }} already exists in fork. Nothing to do."
+            TAG_EXISTS=true
+          fi
+          echo "tag_exists=$TAG_EXISTS" >> $GITHUB_OUTPUT # Set output for next step
 
-      - name: Check if tag already exists in fork
-        if: steps.tag.outputs.latest_tag != ''
-        run: |
-          if git rev-parse "refs/tags/${{ steps.tag.outputs.latest_tag }}" >/dev/null 2>&1; then
-            echo "Tag ${{ steps.tag.outputs.latest_tag }} already exists in fork. Nothing to do."
-            exit 0
-          fi
+      - name: Merge upstream devel into fork devel (keep constants.xml)
+        # Continue ONLY if a new tag was found AND the tag doesn't exist in the fork
+        if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
+        run: |
+          # Checkout your devel branch (adjust if you use another branch)
+          git checkout devel
 
-      - name: Merge upstream devel into fork devel (keep constants.xml)
-        if: steps.tag.outputs.latest_tag != ''
-        run: |
-          # Checkout your devel branch (adjust if you use another branch)
-          git checkout devel
+          # Merge upstream/devel - use || true to prevent job failure on conflict
+          git merge upstream/devel --no-commit --no-ff || true
 
-          # Merge upstream/devel
-          git merge upstream/devel --no-commit --no-ff || true
+          # Always keep your own constants.xml (Common Android resource file)
+          CONSTANTS_FILE="app/src/main/res/values/constants.xml"
+          if [ -f "$CONSTANTS_FILE" ]; then
+            # Checkout the version from the local branch (ours)
+            git checkout --ours "$CONSTANTS_FILE" || true
+          fi
 
-          # Always keep your own constants.xml
-          if [ -f app/src/main/res/values/constants.xml ]; then
-            git checkout --ours app/src/main/res/values/constants.xml || true
-          fi
+          # If nothing changed after merge (or only conflicts were resolved by --ours), abort merge and exit
+          if git diff --quiet; then
+            echo "No meaningful changes after merge; aborting."
+            git merge --abort || true
+            exit 0
+          fi
 
-          # If nothing changed, abort merge and exit
-          if git diff --quiet; then
-            echo "No changes after merge; aborting."
-            git merge --abort || true
-            exit 0
-          fi
+          git commit -am "Auto-sync: upstream devel -> fork devel (constants.xml preserved)"
+          # Set output to signal successful commit for the push step
+          echo "commit_created=true" >> $GITHUB_OUTPUT
+          
 
-          git commit -am "Auto-sync: upstream devel -> fork devel (constants.xml preserved)"
+      - name: Push sync commit to fork
+        # Check for both new tag AND successful merge commit output
+        if: steps.tag.outputs.latest_tag != '' && steps.merge.outputs.commit_created == 'true'
+        run: |
+          git push origin devel
 
-      - name: Push sync commit to fork
-        if: steps.tag.outputs.latest_tag != ''
-        run: |
-          git push origin devel
+      - name: Create same tag in fork
+        # Only tag if a new tag was found and the merge happened successfully (or skipped because no merge was needed but a tag still needs mirroring)
+        if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
+        run: |
+          git tag "${{ steps.tag.outputs.latest_tag }}"
+          git push origin "${{ steps.tag.outputs.latest_tag }}"
 
-      - name: Create same tag in fork
-        if: steps.tag.outputs.latest_tag != ''
-        run: |
-          git tag "${{ steps.tag.outputs.latest_tag }}"
-          git push origin "${{ steps.tag.outputs.latest_tag }}"
-
-      - name: Done
-        if: steps.tag.outputs.latest_tag != ''
-        run: echo "Tag pushed; release workflow will build APK automatically."
+      - name: Done
+        if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
+        run: echo "New tag and sync completed. The tag push should trigger an auto-build workflow."
