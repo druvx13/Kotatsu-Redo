@@ -4,19 +4,27 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - '*'        # run for any tag, e.g. 9.5.1
-
+      - 'v*.*.*'
+      - '*.*.*'
 
 permissions:
-  contents: write   # required to create releases
+  contents: write
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
 
+    env:
+      # These credentials are consistent. The KEYSTORE itself will be saved to the repo.
+      KEY_PASSWORD: "password123"
+      STORE_PASSWORD: "password123"
+      KEY_ALIAS: "kotatsuKey"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to commit the key back to the repo
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -31,28 +39,64 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      # Generate throwaway keystore on the runner
-      - name: Generate release keystore
+      # 🟢 MAGIC STEP: Check for key, or Generate & Commit if missing 🟢
+      - name: Ensure Keystore Exists (Auto-Generate if missing)
         run: |
-          keytool -genkeypair \
-            -alias kotatsuKey \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass password \
-            -keypass password \
-            -dname "CN=Kotatsu,O=Self,C=US" \
-            -keystore kotatsu-release.keystore
+          KEY_FILE="keystore.b64"
+
+          # 1. Check if the encoded key file exists in the repo
+          if [ -f "$KEY_FILE" ]; then
+            echo "✅ Keystore file found. Decoding..."
+            base64 --decode "$KEY_FILE" > release.keystore
+          else
+            echo "⚠️ Keystore file NOT found. Generating a new permanent key..."
+            
+            # Generate the keystore file (release.keystore)
+            keytool -genkeypair -v \
+              -keystore release.keystore \
+              -alias "${{ env.KEY_ALIAS }}" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "${{ env.STORE_PASSWORD }}" \
+              -keypass "${{ env.KEY_PASSWORD }}" \
+              -dname "CN=KotatsuUser, O=Personal, C=US"
+
+            # Encode it to Base64 so we can store it as a text file
+            base64 release.keystore > "$KEY_FILE"
+
+            echo "💾 Committing new key to 'devel' branch so future builds match..."
+            
+            # Configure Git
+            git config --global user.name "GitHub Actions"
+            git config --global user.email "actions@github.com"
+            
+            # Switch to devel branch to save the file permanently
+            git fetch origin devel
+            git checkout devel
+            
+            # Add and commit the b64 file
+            git add "$KEY_FILE"
+            git commit -m "chore: Auto-generate permanent signing key [skip ci]"
+            git push origin devel
+            
+            echo "✅ Key saved to repo. Switching back to tag for build..."
+            # Switch back to the tag we are supposed to be building
+            git checkout -
+            
+            # Restore the generated keystore for THIS build run
+            base64 --decode "$KEY_FILE" > release.keystore
+          fi
 
       - name: Build signed release APK
         run: |
           ./gradlew assembleRelease --no-daemon \
-            -Pandroid.injected.signing.store.file=$PWD/kotatsu-release.keystore \
-            -Pandroid.injected.signing.store.password=password \
-            -Pandroid.injected.signing.key.alias=kotatsuKey \
-            -Pandroid.injected.signing.key.password=password
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ env.STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ env.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ env.KEY_PASSWORD }}"
 
-      - name: Archive APK as artifact (optional)
+      - name: Archive APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: kotatsu-redo-signed-release-apk
