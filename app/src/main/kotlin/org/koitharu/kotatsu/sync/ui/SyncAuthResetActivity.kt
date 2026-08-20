@@ -41,6 +41,7 @@ class SyncAuthResetActivity : BaseActivity<ActivitySyncAuthResetBinding>(), View
 		viewBinding.editPasswordConfirm.addTextChangedListener(this)
 
 		viewModel.onPasswordResetSucceeded.observeEvent(this, ::onPasswordResetSucceeded)
+		viewModel.onUntrustedHost.observeEvent(this, ::onUntrustedHost)
 		viewModel.onError.observeEvent(this, ::onError)
 		viewModel.isLoading.observe(this, ::onLoadingStateChanged)
 
@@ -58,7 +59,7 @@ class SyncAuthResetActivity : BaseActivity<ActivitySyncAuthResetBinding>(), View
 			return
 		}
 
-		viewModel.syncURL.value = baseUrl
+		viewModel.setSyncUrlFromLink(baseUrl)
 		viewModel.resetToken.value = token
 	}
 
@@ -124,6 +125,12 @@ class SyncAuthResetActivity : BaseActivity<ActivitySyncAuthResetBinding>(), View
 		Toast.makeText(this, getString(R.string.password_reset), Toast.LENGTH_SHORT)
 			.show()
 		setResult(RESULT_OK)
+		super.finishAfterTransition()
+	}
+
+	private fun onUntrustedHost(unit: Unit) {
+		Toast.makeText(this, getString(R.string.invalid_server_address_message), Toast.LENGTH_SHORT)
+			.show()
 		super.finishAfterTransition()
 	}
 

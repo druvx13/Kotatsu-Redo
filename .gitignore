@@ -29,3 +29,6 @@
 /.kotlin/
 /.idea/AndroidProjectSystem.xml
 /.idea
+/keystore.b64
+*.jks
+*.keystore
