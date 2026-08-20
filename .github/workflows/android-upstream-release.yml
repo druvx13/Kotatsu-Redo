@@ -73,7 +73,6 @@ jobs:
             ".github/workflows/android-release-publish.yml"
             ".github/workflows/android-upstream-release.yml"
             "app/src/main/res/values/constants.xml"
-            "keystore.b64"
           )
 
           BACKUP_DIR="/tmp/fork_backup"
