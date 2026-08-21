@@ -9,12 +9,10 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import org.koitharu.kotatsu.BuildConfig
 import org.koitharu.kotatsu.core.db.entity.MangaSourceEntity
+import org.koitharu.kotatsu.core.util.ext.pagedFlow
 import org.koitharu.kotatsu.explore.data.SourcesSortOrder
 import org.koitharu.kotatsu.parsers.network.CloudFlareHelper
 import org.koitharu.kotatsu.parsers.network.CloudFlareHelper.PROTECTION_CAPTCHA
@@ -93,18 +91,7 @@ abstract class MangaSourcesDao {
 		}
 	}
 
-	fun dumpEnabled(): Flow<MangaSourceEntity> = flow {
-		val window = 10
-		var offset = 0
-		while (currentCoroutineContext().isActive) {
-			val list = findAllEnabled(offset, window)
-			if (list.isEmpty()) {
-				break
-			}
-			offset += window
-			list.forEach { emit(it) }
-		}
-	}
+	fun dumpEnabled(): Flow<MangaSourceEntity> = pagedFlow { offset, limit -> findAllEnabled(offset, limit) }
 
 	@Query("UPDATE sources SET enabled = :isEnabled WHERE source = :source")
 	protected abstract suspend fun updateIsEnabled(source: String, isEnabled: Boolean): Int

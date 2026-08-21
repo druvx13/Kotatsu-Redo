@@ -36,6 +36,7 @@ import org.koitharu.kotatsu.core.util.ext.findAppCompatDelegate
 import org.koitharu.kotatsu.core.util.ext.findParentCallback
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
+import org.koitharu.kotatsu.core.util.ext.setPadding
 import org.koitharu.kotatsu.core.util.ext.setTextAndVisible
 import org.koitharu.kotatsu.core.util.ext.showOrHide
 import org.koitharu.kotatsu.databinding.FragmentPagesBinding
@@ -154,12 +155,7 @@ class PagesFragment :
 	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
 		val typeBask = WindowInsetsCompat.Type.systemBars()
 		val barsInsets = insets.getInsets(typeBask)
-		viewBinding?.recyclerView?.setPadding(
-			barsInsets.left,
-			barsInsets.top,
-			barsInsets.right,
-			barsInsets.bottom,
-		)
+		viewBinding?.recyclerView?.setPadding(barsInsets)
 		return insets.consumeAll(typeBask)
 	}
 

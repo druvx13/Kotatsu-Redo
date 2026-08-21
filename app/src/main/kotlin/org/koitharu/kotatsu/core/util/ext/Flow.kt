@@ -2,6 +2,7 @@ package org.koitharu.kotatsu.core.util.ext
 
 import android.os.SystemClock
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.parsers.util.suspendlazy.SuspendLazy
 import java.util.concurrent.TimeUnit
@@ -177,4 +179,22 @@ fun <T> MutableStateFlow<List<T>>.append(item: T) {
 fun <T> Flow<T>.concat(other: Flow<T>) = flow {
 	emitAll(this@concat)
 	emitAll(other)
+}
+
+/**
+ * Emits all the items provided by [source] page by page until it returns an empty page.
+ */
+fun <T> pagedFlow(
+	pageSize: Int = 10,
+	source: suspend (offset: Int, limit: Int) -> List<T>,
+): Flow<T> = flow {
+	var offset = 0
+	while (currentCoroutineContext().isActive) {
+		val page = source(offset, pageSize)
+		if (page.isEmpty()) {
+			break
+		}
+		offset += pageSize
+		page.forEach { emit(it) }
+	}
 }

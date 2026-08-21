@@ -1,10 +1,8 @@
 package org.koitharu.kotatsu.scrobbling.common.data
 
 import androidx.room.*
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
+import org.koitharu.kotatsu.core.util.ext.pagedFlow
 
 @Dao
 abstract class ScrobblingDao {
@@ -27,16 +25,5 @@ abstract class ScrobblingDao {
 	@Query("SELECT * FROM scrobblings ORDER BY scrobbler LIMIT :limit OFFSET :offset")
 	protected abstract suspend fun findAll(offset: Int, limit: Int): List<ScrobblingEntity>
 
-	fun dumpEnabled(): Flow<ScrobblingEntity> = flow {
-		val window = 10
-		var offset = 0
-		while (currentCoroutineContext().isActive) {
-			val list = findAll(offset, window)
-			if (list.isEmpty()) {
-				break
-			}
-			offset += window
-			list.forEach { emit(it) }
-		}
-	}
+	fun dumpEnabled(): Flow<ScrobblingEntity> = pagedFlow { offset, limit -> findAll(offset, limit) }
 }

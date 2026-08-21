@@ -20,6 +20,7 @@ import org.koitharu.kotatsu.core.ui.sheet.BaseAdaptiveSheet
 import org.koitharu.kotatsu.core.ui.util.DefaultTextWatcher
 import org.koitharu.kotatsu.core.util.ext.consumeAll
 import org.koitharu.kotatsu.core.util.ext.observe
+import org.koitharu.kotatsu.core.util.ext.setPadding
 import org.koitharu.kotatsu.databinding.SheetTagsBinding
 import org.koitharu.kotatsu.filter.ui.FilterCoordinator
 import org.koitharu.kotatsu.filter.ui.model.TagCatalogItem
@@ -64,12 +65,7 @@ class TagsCatalogSheet : BaseAdaptiveSheet<SheetTagsBinding>(),
 	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
 		val typeBask = WindowInsetsCompat.Type.systemBars()
 		val barsInsets = insets.getInsets(typeBask)
-		viewBinding?.recyclerView?.setPadding(
-			barsInsets.left,
-			barsInsets.top,
-			barsInsets.right,
-			barsInsets.bottom,
-		)
+		viewBinding?.recyclerView?.setPadding(barsInsets)
 		return insets.consumeAll(typeBask)
 	}
 

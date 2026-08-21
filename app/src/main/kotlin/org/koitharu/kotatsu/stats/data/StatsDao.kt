@@ -7,12 +7,9 @@ import androidx.room.RawQuery
 import androidx.room.Upsert
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import org.koitharu.kotatsu.core.db.entity.MangaEntity
-import kotlin.collections.forEach
+import org.koitharu.kotatsu.core.util.ext.pagedFlow
 
 @Dao
 abstract class StatsDao {
@@ -68,16 +65,5 @@ abstract class StatsDao {
 
 	@Query("SELECT * FROM stats ORDER BY started_at LIMIT :limit OFFSET :offset")
 	protected abstract suspend fun findAll(offset: Int, limit: Int): List<StatsEntity>
-	fun dumpEnabled(): Flow<StatsEntity> = flow {
-		val window = 10
-		var offset = 0
-		while (currentCoroutineContext().isActive) {
-			val list = findAll(offset, window)
-			if (list.isEmpty()) {
-				break
-			}
-			offset += window
-			list.forEach { emit(it) }
-		}
-	}
+	fun dumpEnabled(): Flow<StatsEntity> = pagedFlow { offset, limit -> findAll(offset, limit) }
 }

@@ -2,11 +2,9 @@ package org.koitharu.kotatsu.settings.storage.directories
 
 import android.Manifest
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -26,7 +24,7 @@ import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.tryLaunch
 import org.koitharu.kotatsu.databinding.ActivityMangaDirectoriesBinding
-import org.koitharu.kotatsu.settings.storage.RequestStorageManagerPermissionContract
+import org.koitharu.kotatsu.settings.storage.storagePermissionContract
 
 @AndroidEntryPoint
 class MangaDirectoriesActivity : BaseActivity<ActivityMangaDirectoriesBinding>(),
@@ -41,13 +39,7 @@ class MangaDirectoriesActivity : BaseActivity<ActivityMangaDirectoriesBinding>()
 	) {
 		if (it != null) viewModel.onCustomDirectoryPicked(it)
 	}
-	private val permissionRequestLauncher = registerForActivityResult(
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-			RequestStorageManagerPermissionContract()
-		} else {
-			ActivityResultContracts.RequestPermission()
-		},
-	) {
+	private val permissionRequestLauncher = registerForActivityResult(storagePermissionContract()) {
 		if (it) {
 			viewModel.updateList()
 			if (!pickFileTreeLauncher.tryLaunch(null)) {

@@ -6,9 +6,21 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.net.toUri
 
+/**
+ * Returns a contract which requests an access to the shared storage
+ * in a way appropriate for the current Android version.
+ */
+fun storagePermissionContract(): ActivityResultContract<String, Boolean> {
+	return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+		RequestStorageManagerPermissionContract()
+	} else {
+		ActivityResultContracts.RequestPermission()
+	}
+}
 
 @RequiresApi(Build.VERSION_CODES.R)
 class RequestStorageManagerPermissionContract : ActivityResultContract<String, Boolean>() {
