@@ -6,7 +6,6 @@ import android.view.ViewGroup.MarginLayoutParams
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
-import androidx.core.view.updatePadding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
@@ -18,6 +17,7 @@ import org.koitharu.kotatsu.core.util.ext.end
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.systemBarsInsets
+import org.koitharu.kotatsu.core.util.ext.updatePadding
 import org.koitharu.kotatsu.databinding.ActivityPresetListBinding
 import org.koitharu.kotatsu.explore.data.SourcePreset
 import org.koitharu.kotatsu.list.ui.adapter.TypedListSpacingDecoration
@@ -55,16 +55,8 @@ class SourcePresetListActivity :
 
 	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
 		val barsInsets = insets.systemBarsInsets
-		viewBinding.recyclerView.updatePadding(
-			left = barsInsets.left,
-			right = barsInsets.right,
-			bottom = barsInsets.bottom,
-		)
-		viewBinding.appbar.updatePadding(
-			left = barsInsets.left,
-			right = barsInsets.right,
-			top = barsInsets.top,
-		)
+		viewBinding.recyclerView.updatePadding(barsInsets, top = false)
+		viewBinding.appbar.updatePadding(barsInsets, bottom = false)
 		viewBinding.fabAdd.updateLayoutParams<MarginLayoutParams> {
 			marginEnd = topMargin + barsInsets.end(v)
 			bottomMargin = topMargin + barsInsets.bottom

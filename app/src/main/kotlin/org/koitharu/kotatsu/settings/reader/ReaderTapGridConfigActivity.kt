@@ -22,6 +22,7 @@ import org.koitharu.kotatsu.core.util.ext.consumeAllSystemBarsInsets
 import org.koitharu.kotatsu.core.util.ext.findKeyByValue
 import org.koitharu.kotatsu.core.util.ext.getThemeDrawable
 import org.koitharu.kotatsu.core.util.ext.observe
+import org.koitharu.kotatsu.core.util.ext.setPadding
 import org.koitharu.kotatsu.core.util.ext.systemBarsInsets
 import org.koitharu.kotatsu.databinding.ActivityReaderTapActionsBinding
 import org.koitharu.kotatsu.reader.domain.TapGridArea
@@ -61,12 +62,7 @@ class ReaderTapGridConfigActivity : BaseActivity<ActivityReaderTapActionsBinding
 
 	override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
 		val barsInsets = insets.systemBarsInsets
-		viewBinding.root.setPadding(
-			barsInsets.left,
-			barsInsets.top,
-			barsInsets.right,
-			barsInsets.bottom,
-		)
+		viewBinding.root.setPadding(barsInsets)
 		return insets.consumeAllSystemBarsInsets()
 	}
 

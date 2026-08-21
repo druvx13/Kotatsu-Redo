@@ -5,6 +5,25 @@ import androidx.core.graphics.Insets
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsCompat.Type.InsetsType
 
+fun View.setPadding(insets: Insets) {
+	setPadding(insets.left, insets.top, insets.right, insets.bottom)
+}
+
+fun View.updatePadding(
+	insets: Insets,
+	left: Boolean = true,
+	top: Boolean = true,
+	right: Boolean = true,
+	bottom: Boolean = true,
+) {
+	setPadding(
+		if (left) insets.left else paddingLeft,
+		if (top) insets.top else paddingTop,
+		if (right) insets.right else paddingRight,
+		if (bottom) insets.bottom else paddingBottom,
+	)
+}
+
 fun Insets.end(view: View): Int {
 	return if (view.isRtl) left else right
 }

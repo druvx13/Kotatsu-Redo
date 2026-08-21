@@ -10,14 +10,12 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import org.intellij.lang.annotations.Language
 import org.koitharu.kotatsu.core.db.MangaQueryBuilder
 import org.koitharu.kotatsu.core.db.TABLE_FAVOURITES
 import org.koitharu.kotatsu.core.db.entity.MangaWithTags
+import org.koitharu.kotatsu.core.util.ext.pagedFlow
 import org.koitharu.kotatsu.favourites.domain.model.Cover
 import org.koitharu.kotatsu.list.domain.ListFilterOption
 import org.koitharu.kotatsu.list.domain.ListSortOrder
@@ -166,18 +164,7 @@ abstract class FavouritesDao : MangaQueryBuilder.ConditionCallback {
 	)
 	abstract suspend fun findPopularTagTitles(categoryId: Long, limit: Int): List<String>
 
-	fun dump(): Flow<FavouriteManga> = flow {
-		val window = 10
-		var offset = 0
-		while (currentCoroutineContext().isActive) {
-			val list = findAllRaw(offset, window)
-			if (list.isEmpty()) {
-				break
-			}
-			offset += window
-			list.forEach { emit(it) }
-		}
-	}
+	fun dump(): Flow<FavouriteManga> = pagedFlow { offset, limit -> findAllRaw(offset, limit) }
 
 	/** INSERT **/
 

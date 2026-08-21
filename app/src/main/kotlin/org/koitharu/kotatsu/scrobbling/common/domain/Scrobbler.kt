@@ -95,12 +95,27 @@ abstract class Scrobbler(
 		return entity.toScrobblingInfo()
 	}
 
-	abstract suspend fun updateScrobblingInfo(
+	/**
+	 * A factor the normalized rating is multiplied by to fit the scrobbler's own rating scale.
+	 */
+	protected open val ratingScale: Float = 1f
+
+	open suspend fun updateScrobblingInfo(
 		mangaId: Long,
 		@FloatRange(from = 0.0, to = 1.0) rating: Float,
 		status: ScrobblingStatus?,
 		comment: String?,
-	)
+	) {
+		val entity = db.getScrobblingDao().find(scrobblerService.id, mangaId)
+		requireNotNull(entity) { "Scrobbling info for manga $mangaId not found" }
+		repository.updateRate(
+			rateId = entity.id,
+			mangaId = entity.mangaId,
+			rating = rating * ratingScale,
+			status = statuses[status],
+			comment = comment,
+		)
+	}
 
 	fun observeScrobblingInfo(mangaId: Long): Flow<ScrobblingInfo?> {
 		return db.getScrobblingDao().observe(scrobblerService.id, mangaId)

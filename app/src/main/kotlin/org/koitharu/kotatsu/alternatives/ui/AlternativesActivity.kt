@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import coil3.ImageLoader
 import dagger.hilt.android.AndroidEntryPoint
 import org.koitharu.kotatsu.R
@@ -20,6 +19,7 @@ import org.koitharu.kotatsu.core.util.ext.consumeAllSystemBarsInsets
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.systemBarsInsets
+import org.koitharu.kotatsu.core.util.ext.updatePadding
 import org.koitharu.kotatsu.databinding.ActivityAlternativesBinding
 import org.koitharu.kotatsu.list.ui.adapter.ListItemType
 import org.koitharu.kotatsu.list.ui.adapter.ListStateHolderListener
@@ -75,16 +75,8 @@ class AlternativesActivity : BaseActivity<ActivityAlternativesBinding>(),
 		insets: WindowInsetsCompat
 	): WindowInsetsCompat {
 		val barsInsets = insets.systemBarsInsets
-		viewBinding.recyclerView.updatePadding(
-			left = barsInsets.left,
-			right = barsInsets.right,
-			bottom = barsInsets.bottom,
-		)
-		viewBinding.appbar.updatePadding(
-			left = barsInsets.left,
-			right = barsInsets.right,
-			top = barsInsets.top,
-		)
+		viewBinding.recyclerView.updatePadding(barsInsets, top = false)
+		viewBinding.appbar.updatePadding(barsInsets, bottom = false)
 		return insets.consumeAllSystemBarsInsets()
 	}
 

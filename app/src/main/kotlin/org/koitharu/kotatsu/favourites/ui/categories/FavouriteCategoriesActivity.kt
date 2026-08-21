@@ -7,7 +7,6 @@ import androidx.activity.viewModels
 import androidx.appcompat.view.ActionMode
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
-import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import coil3.ImageLoader
@@ -23,6 +22,7 @@ import org.koitharu.kotatsu.core.util.ext.end
 import org.koitharu.kotatsu.core.util.ext.observe
 import org.koitharu.kotatsu.core.util.ext.observeEvent
 import org.koitharu.kotatsu.core.util.ext.systemBarsInsets
+import org.koitharu.kotatsu.core.util.ext.updatePadding
 import org.koitharu.kotatsu.databinding.ActivityCategoriesBinding
 import org.koitharu.kotatsu.favourites.ui.categories.adapter.CategoriesAdapter
 import org.koitharu.kotatsu.list.ui.adapter.ListStateHolderListener
@@ -76,16 +76,8 @@ class FavouriteCategoriesActivity :
 		insets: WindowInsetsCompat
 	): WindowInsetsCompat {
 		val barsInsets = insets.systemBarsInsets
-		viewBinding.recyclerView.updatePadding(
-			left = barsInsets.left,
-			right = barsInsets.right,
-			bottom = barsInsets.bottom,
-		)
-		viewBinding.appbar.updatePadding(
-			left = barsInsets.left,
-			right = barsInsets.right,
-			top = barsInsets.top,
-		)
+		viewBinding.recyclerView.updatePadding(barsInsets, top = false)
+		viewBinding.appbar.updatePadding(barsInsets, bottom = false)
 		viewBinding.fabAdd.updateLayoutParams<MarginLayoutParams> {
 			marginEnd = topMargin + barsInsets.end(v)
 			bottomMargin = topMargin + barsInsets.bottom

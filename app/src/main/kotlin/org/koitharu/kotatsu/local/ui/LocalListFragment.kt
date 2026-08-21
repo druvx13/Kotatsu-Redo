@@ -1,13 +1,11 @@
 package org.koitharu.kotatsu.local.ui
 
 import android.Manifest
-import android.os.Build
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.view.ActionMode
 import androidx.core.net.toFile
 import androidx.core.net.toUri
@@ -28,17 +26,11 @@ import org.koitharu.kotatsu.filter.ui.FilterCoordinator
 import org.koitharu.kotatsu.list.ui.MangaListFragment
 import org.koitharu.kotatsu.remotelist.ui.MangaSearchMenuProvider
 import org.koitharu.kotatsu.remotelist.ui.RemoteListFragment
-import org.koitharu.kotatsu.settings.storage.RequestStorageManagerPermissionContract
+import org.koitharu.kotatsu.settings.storage.storagePermissionContract
 
 class LocalListFragment : MangaListFragment(), FilterCoordinator.Owner {
 
-	private val permissionRequestLauncher = registerForActivityResult(
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-			RequestStorageManagerPermissionContract()
-		} else {
-			ActivityResultContracts.RequestPermission()
-		},
-	) {
+	private val permissionRequestLauncher = registerForActivityResult(storagePermissionContract()) {
 		if (it) {
 			viewModel.onRefresh()
 		}
