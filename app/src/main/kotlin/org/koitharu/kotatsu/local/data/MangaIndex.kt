@@ -99,6 +99,8 @@ class MangaIndex(source: String?) {
 			},
 			chapters = getChapters(json.getJSONObject(KEY_CHAPTERS), source),
 		)
+	}.onFailure {
+		it.printStackTraceDebug()
 	}.getOrNull()
 
 	fun getCoverEntry(): String? = json.getStringOrNull(KEY_COVER_ENTRY)
