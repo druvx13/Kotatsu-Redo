@@ -151,7 +151,8 @@ class AppShortcutManager @Inject constructor(
 	private fun clearShortcuts() {
 		try {
 			ShortcutManagerCompat.removeAllDynamicShortcuts(context)
-		} catch (_: IllegalStateException) {
+		} catch (e: IllegalStateException) {
+			e.printStackTraceDebug()
 		}
 	}
 

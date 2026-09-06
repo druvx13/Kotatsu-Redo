@@ -10,6 +10,7 @@ import androidx.preference.ListPreference
 import androidx.preference.Preference
 import com.google.android.material.snackbar.Snackbar
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -173,6 +174,8 @@ class DownloadsSettingsFragment :
 					}
 					downloadsScheduler.updateConstraints(option)
 				}
+			} catch (e: CancellationException) {
+				throw e
 			} catch (e: Exception) {
 				e.printStackTraceDebug()
 			} finally {
