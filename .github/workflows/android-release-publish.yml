@@ -1,0 +1,81 @@
+name: Android Release APK (signed + publish)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+      - '*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    env:
+      KEY_PASSWORD: "password123"
+      STORE_PASSWORD: "password123"
+      KEY_ALIAS: "kotatsuKey"
+      # The RAW URL of your keystore file on the devel branch
+      KEYSTORE_URL: "https://raw.githubusercontent.com/druvx13/Kotatsu-Redo/devel/keystore.b64"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      # 🟢 DIRECT DOWNLOAD LOGIC 🟢
+      - name: Download Keystore
+        run: |
+          echo "⬇️ Downloading keystore from devel branch..."
+          
+          # Use curl to download the raw file. 
+          # -f: Fail silently (no output) on server errors (404/etc) so we can catch it
+          # -L: Follow redirects
+          # -o: Output to file
+          if curl -fL -o keystore.b64 "${{ env.KEYSTORE_URL }}"; then
+             echo "✅ Download successful."
+          else
+             echo "❌ Download failed! Please check if the URL is accessible and the file exists."
+             exit 1
+          fi
+
+          echo "🔓 Decoding keystore..."
+          base64 --decode keystore.b64 > release.keystore
+
+      - name: Build signed release APK
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=$PWD/release.keystore \
+            -Pandroid.injected.signing.store.password="${{ env.STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ env.KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ env.KEY_PASSWORD }}"
+
+      - name: Archive APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotatsu-redo-signed-release-apk
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Publish GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
