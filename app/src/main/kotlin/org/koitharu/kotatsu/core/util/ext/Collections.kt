@@ -36,11 +36,11 @@ fun <T> List<T>.takeMostFrequent(limit: Int): List<T> {
 	for (item in this) {
 		map[item] = map.getOrDefault(item, 0) + 1
 	}
-	val entries = map.entries.sortedByDescending { it.value }
+	val entries = map.map { (key, value) -> key to value }.sortedByDescending { it.second }
 	val count = minOf(limit, entries.size)
 	return buildList(count) {
 		repeat(count) { i ->
-			add(entries[i].key)
+			add(entries[i].first)
 		}
 	}
 }
