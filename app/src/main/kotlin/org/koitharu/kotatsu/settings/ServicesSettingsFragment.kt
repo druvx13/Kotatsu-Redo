@@ -18,6 +18,7 @@ import org.koitharu.kotatsu.core.ui.dialog.buildAlertDialog
 import org.koitharu.kotatsu.core.util.ext.getDisplayMessage
 import org.koitharu.kotatsu.core.util.ext.printStackTraceDebug
 import org.koitharu.kotatsu.core.util.ext.viewLifecycleScope
+import org.koitharu.kotatsu.parsers.util.runCatchingCancellable
 import org.koitharu.kotatsu.scrobbling.common.domain.model.ScrobblerService
 import org.koitharu.kotatsu.scrobbling.common.ui.ScrobblerAuthHelper
 import org.koitharu.kotatsu.settings.utils.SplitSwitchPreference
@@ -114,7 +115,7 @@ class ServicesSettingsFragment : BasePreferenceFragment(R.string.services),
 			pref.setSummary(R.string.loading_)
 			viewLifecycleScope.launch {
 				pref.summary = withContext(Dispatchers.Default) {
-					runCatching {
+					runCatchingCancellable {
 						val user = scrobblerAuthHelper.getUser(scrobblerService)
 						getString(R.string.logged_in_as, user.nickname)
 					}.getOrElse {

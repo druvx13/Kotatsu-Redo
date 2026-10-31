@@ -107,6 +107,7 @@ class SourceSettingsViewModel @Inject constructor(
 				isAuthorized.value = authProvider?.isAuthorized()
 				username.value = authProvider?.getUsername()
 			} catch (_: AuthRequiredException) {
+				isAuthorized.value = false
 			}
 		}
 	}
