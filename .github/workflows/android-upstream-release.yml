@@ -1,0 +1,141 @@
+name: Auto Upstream Release Sync + Auto Build
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Configure Git User
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Add and Fetch Upstream
+        run: |
+          git remote add upstream https://github.com/Kotatsu-Redo/Kotatsu-Redo.git
+          git fetch upstream --tags --force
+
+      - name: Identify Latest Upstream Tag
+        id: tag
+        run: |
+          latest_tag=$(git ls-remote --tags upstream \
+            | sed 's|^.*refs/tags/||' \
+            | sed 's|\^{}||' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -n1)
+
+          if [ -z "$latest_tag" ]; then
+            echo "::warning::No stable tags found on upstream."
+            echo "latest_tag=" >> $GITHUB_OUTPUT
+          else
+            echo "Latest stable upstream tag: $latest_tag"
+            echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if Tag Exists in Fork
+        if: steps.tag.outputs.latest_tag != ''
+        id: tag-check
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.tag.outputs.latest_tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.tag.outputs.latest_tag }} already exists. Skipping sync."
+            echo "tag_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag ${{ steps.tag.outputs.latest_tag }} is new. Proceeding with sync."
+            echo "tag_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Sync Fork (Preserving Custom Files)
+        if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
+        id: sync
+        run: |
+          git checkout devel
+
+          # ---------------------------------------------------------
+          # 🛡️ LIST OF FILES TO PRESERVE 🛡️
+          # Add any file here that exists in YOUR fork but not upstream
+          # ---------------------------------------------------------
+          FILES_TO_PRESERVE=(
+            ".github/workflows/android-release-publish.yml"
+            ".github/workflows/android-upstream-release.yml"
+            "app/src/main/res/values/constants.xml"
+            "keystore.b64"
+          )
+
+          BACKUP_DIR="/tmp/fork_backup"
+          mkdir -p "$BACKUP_DIR"
+
+          # 1. BACKUP LOOP
+          echo "📦 Backing up custom files..."
+          for file in "${FILES_TO_PRESERVE[@]}"; do
+            if [ -f "$file" ]; then
+              # Create directory structure in backup folder (e.g., .github/workflows/)
+              mkdir -p "$BACKUP_DIR/$(dirname "$file")"
+              cp "$file" "$BACKUP_DIR/$file"
+              echo "  - Backed up: $file"
+            else
+              echo "  - ⚠️ File not found (skipping): $file"
+            fi
+          done
+
+          # 2. HARD RESET (Wipes everything to match upstream)
+          echo "🔄 Resetting fork to match upstream/devel..."
+          git reset --hard upstream/devel
+
+          # 3. RESTORE LOOP
+          echo "♻️ Restoring custom files..."
+          CHANGES_DETECTED=false
+          
+          for file in "${FILES_TO_PRESERVE[@]}"; do
+            if [ -f "$BACKUP_DIR/$file" ]; then
+              # Ensure destination directory exists
+              mkdir -p "$(dirname "$file")"
+              cp "$BACKUP_DIR/$file" "$file"
+              
+              # Stage the file
+              git add "$file"
+              echo "  - Restored: $file"
+              CHANGES_DETECTED=true
+            fi
+          done
+
+          # 4. COMMIT RESTORATION
+          if [ "$CHANGES_DETECTED" = true ]; then
+            git commit -m "chore: Restore custom workflows and config after upstream sync"
+            echo "✅ Custom files restored and committed."
+          else
+            echo "ℹ️ No custom files needed restoration."
+          fi
+          
+          echo "sync_success=true" >> $GITHUB_OUTPUT
+
+      - name: Push Devel Branch
+        if: steps.sync.outputs.sync_success == 'true'
+        run: |
+          git push origin devel --force
+
+      - name: Push New Tag
+        if: steps.sync.outputs.sync_success == 'true'
+        run: |
+          # Force update local tag ref to point to our new commit (with restored files)
+          git tag -f "${{ steps.tag.outputs.latest_tag }}"
+          # Force push tag to origin
+          git push origin "${{ steps.tag.outputs.latest_tag }}" --force
+
+      - name: Completion
+        if: always()
+        run: echo "Sync workflow finished."
