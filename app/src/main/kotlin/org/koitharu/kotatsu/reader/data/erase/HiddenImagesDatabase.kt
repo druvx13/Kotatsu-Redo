@@ -1,7 +1,6 @@
 package org.koitharu.kotatsu.reader.data.erase
 
 import android.content.Context
-import androidx.room.AutoMigration
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
@@ -15,8 +14,6 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
-import androidx.room.migration.AutoMigrationSpec
-import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -162,36 +159,15 @@ abstract class HiddenImagesDao {
  * adding `Migration28To29` to the shared one collides with upstream the day upstream adds its own.
  *
  * Unlike that one this holds what the reader decided rather than something that rebuilds itself, so it has
- * no destructive fallback. A schema change here has to ship a migration.
+ * no destructive fallback. This is version 1 because the database is new in this release; future schema
+ * changes must add an explicit migration.
  */
 @Database(
 	entities = [HiddenImageEntity::class, HiddenPageEntity::class, PageScanEntity::class],
-	version = 7,
-	autoMigrations = [
-		AutoMigration(from = 1, to = 2),
-		AutoMigration(from = 2, to = 3),
-		AutoMigration(from = 3, to = 4),
-		AutoMigration(from = 4, to = 5, spec = ForgetUnreliableMatches::class),
-		AutoMigration(from = 5, to = 6),
-		AutoMigration(from = 6, to = 7),
-	],
+	version = 1,
 )
 abstract class HiddenImagesDatabase : RoomDatabase() {
 	abstract fun getDao(): HiddenImagesDao
-}
-
-/**
- * Builds before this one could mistake ordinary pages for a cut off image, and what they concluded was saved:
- * pages hidden whole, and strips removed from their neighbours. All of that is worked out from the images the
- * reader erased, which stay, so it is dropped and found again by a matcher that gets it right.
- */
-class ForgetUnreliableMatches : AutoMigrationSpec {
-
-	override fun onPostMigrate(db: SupportSQLiteDatabase) {
-		db.execSQL("DELETE FROM hidden_pages")
-		db.execSQL("DELETE FROM hidden_images WHERE parent_id IS NOT NULL")
-		db.execSQL("DELETE FROM page_scans")
-	}
 }
 
 @Module
