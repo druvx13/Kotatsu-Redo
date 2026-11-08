@@ -195,7 +195,8 @@ jobs:
                   echo "Dispatching release build for $tag."
                   gh workflow run android-release-publish.yml \
                     --repo "$GITHUB_REPOSITORY" \
-                    --ref "$tag"
+                    --ref devel \
+                    -f source_ref="$tag"
                 else
                   echo "Release $tag is up to date."
                 fi
