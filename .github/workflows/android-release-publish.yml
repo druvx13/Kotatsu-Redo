@@ -2,6 +2,11 @@ name: Android Release APK (signed + publish)
 
 on:
   workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Source ref to build (defaults to the triggering ref)"
+        required: false
+        type: string
   push:
     tags:
       - 'v*.*.*'
@@ -26,6 +31,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.source_ref || github.ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -81,7 +87,7 @@ jobs:
       - name: Load upstream release notes
         id: upstream-release
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ inputs.source_ref || github.ref_name }}
         run: |
           response=$(curl -fsSL \
             "https://api.github.com/repos/Kotatsu-Redo/Kotatsu-Redo/releases/tags/${TAG_NAME}" \
@@ -97,7 +103,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub Release with APK
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.source_ref != ''
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ steps.upstream-release.outputs.name }}
