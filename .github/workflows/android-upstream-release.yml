@@ -59,6 +59,21 @@ jobs:
             echo "tag_exists=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Check if Release Exists in Fork
+        if: steps.tag.outputs.latest_tag != ''
+        id: release-check
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          if gh release view "${{ steps.tag.outputs.latest_tag }}" \
+            --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${{ steps.tag.outputs.latest_tag }} already exists."
+            echo "release_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release ${{ steps.tag.outputs.latest_tag }} is missing."
+            echo "release_exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Sync Fork (Preserving Custom Files)
         if: steps.tag.outputs.latest_tag != '' && steps.tag-check.outputs.tag_exists == 'false'
         id: sync
@@ -135,6 +150,15 @@ jobs:
           git tag -f "${{ steps.tag.outputs.latest_tag }}"
           # Force push tag to origin
           git push origin "${{ steps.tag.outputs.latest_tag }}" --force
+
+      - name: Start Release Build
+        if: steps.tag.outputs.latest_tag != '' && (steps.tag-check.outputs.tag_exists == 'false' || steps.release-check.outputs.release_exists == 'false')
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh workflow run android-release-publish.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "${{ steps.tag.outputs.latest_tag }}"
 
       - name: Completion
         if: always()
