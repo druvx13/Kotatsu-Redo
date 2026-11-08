@@ -106,6 +106,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') || inputs.source_ref != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.source_ref || github.ref_name }}
           name: ${{ steps.upstream-release.outputs.name }}
           body: ${{ steps.upstream-release.outputs.body }}
           files: app/build/outputs/apk/release/*.apk
