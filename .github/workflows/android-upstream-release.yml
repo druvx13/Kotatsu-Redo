@@ -151,15 +151,55 @@ jobs:
           # Force push tag to origin
           git push origin "${{ steps.tag.outputs.latest_tag }}" --force
 
-      - name: Start Release Build
-        if: steps.tag.outputs.latest_tag != '' && (steps.tag-check.outputs.tag_exists == 'false' || steps.release-check.outputs.release_exists == 'false')
+      - name: Reconcile All Stable Releases
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          gh workflow run android-release-publish.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref "${{ steps.tag.outputs.latest_tag }}"
+          set -euo pipefail
 
+          git ls-remote --tags upstream \
+            | sed 's|^.*refs/tags/||' \
+            | sed 's|\^{}||' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -Vu \
+            | while read -r tag; do
+                if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+                  echo "Skipping $tag: fork tag does not exist."
+                  continue
+                fi
+
+                upstream_name=$(gh api \
+                  "repos/Kotatsu-Redo/Kotatsu-Redo/releases/tags/$tag" \
+                  --jq '.name // empty' 2>/dev/null || true)
+                if [ -z "$upstream_name" ]; then
+                  echo "Skipping $tag: upstream release metadata does not exist."
+                  continue
+                fi
+                gh api \
+                  "repos/Kotatsu-Redo/Kotatsu-Redo/releases/tags/$tag" \
+                  --jq '.body // ""' > "/tmp/upstream-$tag.body"
+
+                needs_build=false
+                if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+                  --json name --jq .name > "/tmp/fork-$tag.name" 2>/dev/null; then
+                  echo "Release $tag is missing."
+                  needs_build=true
+                elif [ "$(cat "/tmp/fork-$tag.name")" != "$upstream_name" ] \
+                  || ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+                    --json body --jq '.body // ""' | cmp -s - "/tmp/upstream-$tag.body"; then
+                  echo "Release $tag metadata is stale."
+                  needs_build=true
+                fi
+
+                if [ "$needs_build" = true ]; then
+                  echo "Dispatching release build for $tag."
+                  gh workflow run android-release-publish.yml \
+                    --repo "$GITHUB_REPOSITORY" \
+                    --ref "$tag"
+                else
+                  echo "Release $tag is up to date."
+                fi
+              done
       - name: Completion
         if: always()
         run: echo "Sync workflow finished."
